@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>KONEKT | Supervision Réseau</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); }
+        .orange-glow { box-shadow: 0 0 20px rgba(255, 130, 0, 0.2); }
+    </style>
+</head>
+<body class="bg-[#0f172a] text-slate-200 font-sans min-h-screen">
+
+    <div class="flex">
+        <aside class="w-64 border-r border-slate-800 h-screen sticky top-0 p-6 flex flex-col">
+            <h1 class="text-2xl font-black text-[#FF8200] italic mb-10">KONEKT <span class="text-white font-light">PRO</span></h1>
+            <nav class="space-y-4 flex-1">
+                <div class="bg-orange-500/10 text-orange-500 p-3 rounded-xl font-bold text-xs uppercase italic">Supervision</div>
+                <a href="#" class="block p-3 text-slate-400 hover:text-white transition text-sm">Statistiques</a>
+                <a href="#" class="block p-3 text-slate-400 hover:text-white transition text-sm">Gestion Rames</a>
+            </nav>
+            <a href="{% url 'home' %}" class="text-xs text-slate-500 border-t border-slate-800 pt-4">← Retour Accueil</a>
+        </aside>
+
+        <main class="flex-1 p-8">
+            <header class="flex justify-between items-center mb-10">
+                <div>
+                    <h2 class="text-3xl font-black text-white">Tableau de Bord</h2>
+                    <p class="text-slate-500 text-sm">Surveillance du trafic en temps réel</p>
+                </div>
+                <form class="flex gap-2">
+                    <input type="text" name="q" placeholder="Scanner un billet..."
+                           class="bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 w-64 focus:border-[#FF8200] outline-none transition">
+                    <button class="bg-[#FF8200] text-white px-4 py-2 rounded-xl font-bold text-xs uppercase">Vérifier</button>
+                </form>
+            </header>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+                <div class="glass p-6 rounded-[2rem] border border-slate-800">
+                    <p class="text-slate-500 text-[10px] font-black uppercase mb-2">Billets Émis</p>
+                    <p class="text-4xl font-black text-white">{{ total_tickets }}</p>
+                </div>
+                <div class="glass p-6 rounded-[2rem] border border-slate-800">
+                    <p class="text-slate-500 text-[10px] font-black uppercase mb-2">Revenu Global</p>
+                    <p class="text-4xl font-black text-emerald-500">{{ revenu_total }} <small class="text-xs">FCFA</small></p>
+                </div>
+                <div class="glass p-6 rounded-[2rem] border border-[#FF8200]/30 orange-glow">
+                    <p class="text-orange-500 text-[10px] font-black uppercase mb-2">Trafic Actuel</p>
+                    <p class="text-4xl font-black text-white">Fluide</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div class="lg:col-span-2 glass p-8 rounded-[2.5rem] border border-slate-800">
+                    <h3 class="text-sm font-bold mb-6">Volume de Réservations (7j)</h3>
+                    <canvas id="myChart" height="150"></canvas>
+                </div>
+
+                <div class="glass p-8 rounded-[2.5rem] border border-slate-800">
+                    <h3 class="text-sm font-bold mb-6">Activité Récente</h3>
+                    <div class="space-y-4">
+                        {% for t in derniers_tickets %}
+                        <div class="flex items-center justify-between p-3 bg-slate-900/50 rounded-xl border border-slate-800">
+                            <div>
+                                <p class="text-xs font-bold text-white">{{ t.nom_passager }}</p>
+                                <p class="text-[10px] text-slate-500 uppercase">{{ t.code_ticket }}</p>
+                            </div>
+                            <div class="text-right text-[10px] font-bold text-orange-500">{{ t.date_reservation|time:"H:i" }}</div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const ctx = document.getElementById('myChart');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [{% for s in stats_jours %}"{{ s.day|date:'d M' }}",{% endfor %}],
+                datasets: [{
+                    label: 'Billets',
+                    data: [{% for s in stats_jours %}{{ s.count }},{% endfor %}],
+                    borderColor: '#FF8200',
+                    backgroundColor: 'rgba(255, 130, 0, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, grid: { color: '#1e293b' } },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,35 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>KONEKT | Inscription</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 h-screen flex items-center justify-center font-sans">
+    <div class="max-w-md w-full px-6">
+        <div class="bg-white p-8 rounded-[2.5rem] shadow-2xl border border-gray-100">
+            <h2 class="text-2xl font-black text-center mb-6 text-gray-800">Créer un compte <span class="text-orange-500">Voyageur</span></h2>
+            <form method="POST">
+                {% csrf_token %}
+                <div class="space-y-4">
+                    {% for field in form %}
+                        <div>
+                            <label class="block text-[10px] font-black text-gray-400 uppercase mb-1 ml-2">{{ field.label }}</label>
+                            {{ field }}
+                            {% if field.errors %}
+                                <p class="text-red-500 text-[10px] mt-1">{{ field.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+                <button type="submit" class="w-full bg-black text-white font-black py-4 rounded-2xl mt-8 hover:bg-orange-500 transition-all uppercase text-xs">S'inscrire</button>
+            </form>
+        </div>
+    </div>
+    <style>
+        input { width: 100%; background: #f9fafb; border: 1px solid #f3f4f6; border-radius: 1rem; padding: 1rem; outline: none; }
+        input:focus { border-color: #FF8200; }
+    </style>
+</body>
+</html>

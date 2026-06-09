@@ -1,0 +1,92 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KONEKT | Mes Tickets</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .bg-civ-orange { background-color: #FF8200; }
+        .text-civ-orange { color: #FF8200; }
+    </style>
+</head>
+<body class="bg-gray-50 font-sans text-gray-900">
+
+    <nav class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="max-w-4xl mx-auto px-4 h-16 flex justify-between items-center">
+            <a href="{% url 'home' %}" class="text-2xl font-black text-civ-orange tracking-tighter">KONEKT</a>
+            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Compte Voyageur</span>
+        </div>
+    </nav>
+
+    <div class="max-w-md mx-auto px-4 py-8">
+        <h1 class="text-3xl font-black mb-8 text-gray-800">Mes derniers <br><span class="text-civ-orange">voyages</span></h1>
+
+        <div class="space-y-4">
+            {% for ticket in tickets %}
+            <a href="{% url 'voir_ticket' ticket.code_ticket %}" class="block group">
+                <div class="bg-white rounded-[2rem] p-5 shadow-sm border border-gray-100 group-hover:shadow-xl group-hover:border-orange-200 transition-all duration-300 relative overflow-hidden">
+
+                    <div class="flex justify-between items-center mb-4">
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 rounded-full bg-orange-50 flex items-center justify-center text-sm">🎫</div>
+                            <div>
+                                <p class="text-[8px] font-black text-gray-400 uppercase">Billet n°</p>
+                                <p class="font-mono font-bold text-gray-700 text-xs">{{ ticket.code_ticket }}</p>
+                            </div>
+                        </div>
+                        <span class="bg-green-50 text-green-600 text-[8px] font-black px-2 py-1 rounded-md uppercase border border-green-100">
+                            Confirmé
+                        </span>
+                    </div>
+
+                    <div class="grid grid-cols-7 items-center mb-4">
+                        <div class="col-span-3">
+                            <p class="text-[8px] font-black text-gray-400 uppercase">De</p>
+                            <p class="font-bold text-gray-800 text-xs truncate uppercase">{{ ticket.gare_depart_nom }}</p>
+                        </div>
+                        <div class="col-span-1 text-center text-civ-orange">➔</div>
+                        <div class="col-span-3 text-right">
+                            <p class="text-[8px] font-black text-gray-400 uppercase">À</p>
+                            <p class="font-bold text-gray-800 text-xs truncate uppercase">{{ ticket.gare_arrivee_nom }}</p>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-between items-end pt-4 border-t border-gray-50">
+                        <div class="flex gap-4">
+                            <div>
+                                <p class="text-[8px] font-black text-gray-400 uppercase tracking-tighter">Heure</p>
+                                <p class="font-black text-gray-800 text-sm">{{ ticket.voyage.heure_depart|time:"H:i" }}</p>
+                            </div>
+                            <div>
+                                <p class="text-[8px] font-black text-gray-400 uppercase tracking-tighter">Date</p>
+                                <p class="font-bold text-gray-600 text-xs">{{ ticket.date_reservation|date:"d M Y" }}</p>
+                            </div>
+                        </div>
+                        <p class="font-black text-gray-900">{{ ticket.prix_paye }} <small class="text-[9px]">FCFA</small></p>
+                    </div>
+                </div>
+            </a>
+            {% empty %}
+            <div class="text-center py-20 bg-white rounded-[2.5rem] border-2 border-dashed border-gray-100">
+                <p class="text-4xl mb-4 italic">🎫</p>
+                <p class="text-gray-400 font-bold">Aucun voyage enregistré.</p>
+                <a href="{% url 'home' %}" class="mt-4 inline-block text-civ-orange font-black text-xs uppercase border-b-2 border-civ-orange pb-1">Réserver maintenant</a>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="mt-12">
+            <a href="{% url 'home' %}" class="flex items-center justify-center gap-2 w-full bg-black text-white py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-900 transition-all shadow-lg active:scale-95">
+                🏠 Acheter un nouveau ticket
+            </a>
+        </div>
+    </div>
+
+    <footer class="mt-12 py-8 text-center">
+        <p class="text-[8px] text-gray-300 font-bold uppercase tracking-[0.4em]">Administration KONEKT • Abidjan</p>
+    </footer>
+
+</body>
+</html>

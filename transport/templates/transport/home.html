@@ -1,0 +1,376 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KONEKT | Le réseau qui nous unit</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        civ: {
+                            orange: '#FF8200',
+                            green: '#009E49',
+                            tan: '#FAF0E6'
+                        },
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .hero-bg {
+            background-image: linear-gradient(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.5)), url('{% static "images/Gemini_Generated_Image_r59feur59feur59f.png" %}');
+            background-size: cover;
+            background-position: center;
+            height: 70vh;
+        }
+        @keyframes pulse-soft {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        .animate-pulse-soft {
+            animation: pulse-soft 2s infinite;
+        }
+        #map { z-index: 10; outline: none; }
+        .gare-label {
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid #FF8200;
+            border-radius: 4px;
+            padding: 2px 8px;
+            font-weight: bold;
+            color: #1a202c;
+            font-size: 11px;
+        }
+        .img-hover { transition: transform 0.5s ease; }
+        .img-hover:hover { transform: scale(1.05); }
+
+        .img-clean {
+            filter: contrast(1.05) brightness(1.02);
+            backdrop-filter: blur(0.5px);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 font-sans text-gray-900 leading-relaxed">
+
+    <!-- NAVBAR -->
+    <nav class="bg-white shadow-sm sticky top-0 z-[100]">
+        <div class="max-w-6xl mx-auto px-4 h-20 flex justify-between items-center">
+            <a href="{% url 'home' %}" class="text-3xl font-black text-civ-orange tracking-tighter italic text-center">KONEKT</a>
+
+            <div class="flex items-center gap-6">
+                {% if user.is_authenticated %}
+                    {% if user.is_staff %}
+                    <a href="{% url 'dashboard_agent' %}" class="bg-slate-900 text-white px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase hover:bg-civ-orange transition-all shadow-lg">
+                        🛡️ Dashboard Agent
+                    </a>
+                    {% endif %}
+                    <a href="{% url 'mes_tickets' %}" class="text-[11px] font-black text-gray-600 uppercase tracking-widest hover:text-civ-orange transition-colors">Mes Tickets</a>
+                    <a href="{% url 'logout' %}" class="text-[11px] font-black text-gray-400 uppercase hover:text-red-500 transition-colors border-l pl-6">Déconnexion</a>
+                {% else %}
+                    <a href="{% url 'login' %}" class="text-[11px] font-black text-gray-600 uppercase tracking-widest hover:text-civ-orange transition-colors">Connexion</a>
+                    <a href="{% url 'inscription' %}" class="bg-civ-orange text-white px-8 py-3 rounded-2xl text-[11px] font-black uppercase shadow-xl hover:shadow-orange-200 transition-all">S'inscrire</a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <!-- HERO -->
+    <div class="hero-bg flex items-center justify-center text-center text-white relative">
+        <div class="max-w-4xl px-4">
+            <span class="bg-white/20 backdrop-blur-md text-white text-[10px] font-black px-4 py-2 rounded-full uppercase tracking-[0.3em] mb-6 inline-block border border-white/30">Réseau Métro d'Abidjan</span>
+            <h1 class="text-6xl md:text-7xl font-black tracking-tight uppercase italic leading-tight drop-shadow-2xl">
+                Le réseau qui <span class="text-civ-orange text-shadow-lg">nous unit</span>.
+            </h1>
+            <p class="mt-4 text-xl text-gray-100 font-bold max-w-2xl mx-auto uppercase tracking-[0.2em] drop-shadow-md">Abidjan en mouvement</p>
+        </div>
+    </div>
+
+    <!-- BARRE DE RECHERCHE -->
+    <div class="max-w-6xl mx-auto px-4 mt-12 relative z-30 mb-32">
+        <div class="bg-white rounded-[3.5rem] shadow-[0_40px_80px_-15px_rgba(0,0,0,0.15)] p-10 border border-gray-50">
+            <h2 class="text-xl font-black mb-8 text-slate-800 flex items-center gap-3 italic">
+                <span class="text-2xl">🚉</span> Où allez-vous aujourd'hui ?
+            </h2>
+
+            <form action="{% url 'home' %}" method="GET" class="grid grid-cols-1 md:grid-cols-12 gap-6 items-end">
+                <div class="md:col-span-5">
+                    <label class="block text-[11px] font-black text-gray-400 uppercase mb-3 ml-2">Station de départ</label>
+                    <select name="depart" required class="w-full bg-gray-50 border-2 border-gray-50 rounded-2xl p-4 focus:ring-2 focus:ring-civ-orange focus:bg-white outline-none text-gray-700 font-black transition-all">
+                        <option value="">Sélectionnez votre départ</option>
+                        {% for gare in gares %}
+                            <option value="{{ gare.id }}" {% if depart.id == gare.id %}selected{% endif %}>{{ gare.nom }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="md:col-span-5">
+                    <label class="block text-[11px] font-black text-gray-400 uppercase mb-3 ml-2">Station d'arrivée</label>
+                    <select name="arrivee" required class="w-full bg-gray-50 border-2 border-gray-50 rounded-2xl p-4 focus:ring-2 focus:ring-civ-orange focus:bg-white outline-none text-gray-700 font-black transition-all">
+                        <option value="">Sélectionnez votre destination</option>
+                        {% for gare in gares %}
+                            <option value="{{ gare.id }}" {% if arrivee.id == gare.id %}selected{% endif %}>{{ gare.nom }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="md:col-span-2">
+                    <button type="submit" class="w-full bg-civ-orange hover:bg-orange-600 text-white font-black py-4.5 rounded-2xl transition shadow-xl active:scale-95 uppercase text-[11px] tracking-widest h-[58px]">
+                        Chercher
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- SECTIONS MARKETING -->
+    <section class="max-w-6xl mx-auto px-4 mb-32 overflow-hidden">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
+            <div class="relative group">
+                <div class="overflow-hidden rounded-[3rem] shadow-2xl bg-slate-200">
+                    <img src="{% static 'images/istockphoto-1498219719-612x612.jpg' %}"
+                         alt="Tranquillité à bord de KONEKT" class="img-hover img-clean w-full h-[500px] object-cover">
+                </div>
+                <div class="absolute -bottom-10 -left-10 bg-white p-8 rounded-[2.5rem] shadow-2xl border border-gray-100 hidden md:block z-10">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 bg-civ-green rounded-full flex items-center justify-center text-white">
+                            <i class="fas fa-headphones"></i>
+                        </div>
+                        <div>
+                            <p class="text-2xl font-black italic">Votre Bulle</p>
+                            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Temps pour soi</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="space-y-8">
+                <h2 class="text-5xl font-black italic leading-tight text-slate-800">Un voyage en toute <span class="text-civ-green underline decoration-black decoration-4 underline-offset-8">sérénité</span>.</h2>
+                <p class="text-gray-500 font-medium text-lg leading-relaxed italic">"Oubliez le stress des carrefours. Installez-vous confortablement et profitez du trajet pour écouter vos sons préférés ou simplement décompresser. Avec KONEKT, vous reprenez le contrôle de votre temps."</p>
+                <div class="flex gap-4">
+                    <div class="bg-green-50 p-6 rounded-3xl flex-1 text-center border border-green-100">
+                        <i class="fas fa-user-shield text-civ-green text-2xl mb-2"></i>
+                        <p class="text-[10px] font-black uppercase tracking-widest">Sécurité 24/7</p>
+                    </div>
+                    <div class="bg-gray-100 p-6 rounded-3xl flex-1 text-center">
+                        <i class="fas fa-clock text-slate-600 text-2xl mb-2"></i>
+                        <p class="text-[10px] font-black uppercase tracking-widest">Ponctualité</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SECTION TRAIN USINE -->
+    <section class="max-w-6xl mx-auto px-4 mb-32 overflow-hidden">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
+            <div class="space-y-8 order-2 md:order-1">
+                <h2 class="text-5xl font-black italic leading-tight text-slate-800">Bâtir le transport de <span class="text-civ-orange underline decoration-black decoration-4 underline-offset-8">demain</span>.</h2>
+                <p class="text-gray-500 font-medium text-lg leading-relaxed italic">"Nos équipes et le train-usine travaillent sans relâche pour poser les 37 km de voies qui relieront Anyama à l'Aéroport, transformant la mobilité urbaine pour des millions d'Ivoiriens."</p>
+            </div>
+            <div class="relative group order-1 md:order-2">
+                <div class="overflow-hidden rounded-[3rem] shadow-2xl">
+                    <img src="https://cdn-s-www.bienpublic.com/images/4eba0d0e-d381-45a2-ada4-1c9cbe6cef77/NW_raw/la-grande-majorite-des-400-ouvriers-qui-travaillent-sur-le-chantier-ne-sont-pas-de-la-region.jpg"
+                         alt="Chantier Ligne 1" class="img-hover w-full h-[400px] object-cover">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- PROCHAINS DÉPARTS -->
+    <div class="max-w-7xl mx-auto py-10 px-4 mb-32">
+        <div class="flex flex-col md:flex-row justify-between items-end mb-12 gap-4">
+            <div>
+                <h2 class="text-4xl font-black border-l-8 border-civ-orange pl-6 text-slate-800 uppercase tracking-tighter italic">Prochains départs</h2>
+                <p class="text-gray-400 text-[10px] mt-2 pl-6 font-black uppercase tracking-[0.3em]">Mise à jour en temps réel</p>
+            </div>
+            {% if prix_total > 0 %}
+            <div class="bg-civ-tan px-10 py-4 rounded-[2rem] border border-orange-100 text-right">
+                <span class="text-[10px] font-black text-orange-400 uppercase tracking-widest text-center block mb-1">Tarif trajet</span>
+                <p class="text-4xl font-black text-civ-orange text-center leading-none">{{ prix_total }} <small class="text-sm">FCFA</small></p>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-10">
+            {% for voyage in voyages %}
+            <div class="bg-white p-8 rounded-[3rem] shadow-xl border border-gray-50 hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 group relative overflow-hidden">
+
+                <div class="flex justify-between items-center mb-8 relative z-10">
+                    <span class="text-[10px] font-black text-gray-300 uppercase italic text-center">Rame M1-{{ voyage.id }}</span>
+                    {% if voyage.statut == "EN COURS" %}
+                        <span class="flex items-center text-civ-orange bg-orange-50 px-4 py-2 rounded-full text-[10px] font-black uppercase animate-pulse-soft">
+                            <i class="fas fa-circle text-[6px] mr-2"></i> En cours
+                        </span>
+                    {% else %}
+                        <span class="text-civ-green bg-green-50 px-4 py-2 rounded-full text-[10px] font-black uppercase italic">À l'heure</span>
+                    {% endif %}
+                </div>
+
+                <div class="text-center bg-gray-50 rounded-[2.5rem] py-10 mb-8 group-hover:bg-civ-tan transition-colors duration-500 relative z-10">
+                    <span class="block text-[10px] text-gray-400 uppercase font-black mb-3 tracking-widest">
+                        {% if depart %}Passage prévu à {{ depart.nom }}{% else %}Heure de départ{% endif %}
+                    </span>
+                    <!-- AJUSTEMENT : On utilise l'heure calculée injectée par la vue[cite: 5] -->
+                    <span class="text-slate-900 font-black text-6xl tracking-tighter italic">{{ voyage.heure_affichage|time:"H:i" }}</span>
+                </div>
+
+                <div class="flex justify-between items-center mb-10 px-4 relative z-10">
+                    <div class="text-center flex-1">
+                        <p class="text-[10px] text-gray-400 uppercase font-black mb-1">De</p>
+                        <p class="font-black text-slate-800 text-sm uppercase tracking-tighter italic">
+                            {{ voyage.dep_user }}
+                        </p>
+                    </div>
+                    <i class="fas fa-arrow-right text-civ-orange mx-4 text-sm opacity-30 group-hover:opacity-100 transition-opacity"></i>
+                    <div class="text-center flex-1">
+                        <p class="text-[10px] text-gray-400 uppercase font-black mb-1">À</p>
+                        <p class="font-black text-slate-800 text-sm uppercase tracking-tighter italic">
+                            {{ voyage.arr_user }}
+                        </p>
+                    </div>
+                </div>
+
+                {% if voyage.peut_reserver %}
+                <a href="{% url 'reserver_etape_1' voyage.id %}?dep={{ voyage.dep_user }}&arr={{ voyage.arr_user }}&prix={{ voyage.prix_a_payer }}"
+                   class="block w-full bg-slate-900 text-white text-center font-black py-5 rounded-2xl hover:bg-civ-orange transition-all shadow-lg active:scale-95 uppercase text-[10px] tracking-widest relative z-10">
+                    Acheter un ticket
+                </a>
+                {% else %}
+                <button disabled class="w-full bg-gray-100 text-gray-300 text-center font-black py-5 rounded-2xl uppercase text-[10px] tracking-widest cursor-not-allowed italic relative z-10">
+                    Passage imminent
+                </button>
+                {% endif %}
+
+                <i class="fas fa-train absolute -bottom-10 -right-10 text-9xl text-gray-50 opacity-0 group-hover:opacity-100 transition-opacity duration-700"></i>
+            </div>
+            {% empty %}
+            <div class="col-span-full text-center py-24 bg-white rounded-[4rem] border border-dashed border-gray-200">
+                <i class="fas fa-search text-gray-100 text-8xl mb-6"></i>
+                <p class="text-gray-400 font-bold italic">Sélectionnez vos stations pour voir les départs disponibles.[cite: 5]</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- CARTE INTERACTIVE -->
+<div class="max-w-6xl mx-auto mb-32 px-4">
+    <h2 class="text-3xl font-black text-slate-800 uppercase italic tracking-tighter text-center mb-10">Tracé de la <span class="text-civ-orange">Ligne 1</span></h2>
+    <div class="bg-white rounded-[4rem] shadow-2xl p-4 border border-gray-100 relative z-10">
+        <div class="relative overflow-hidden rounded-[3rem]">
+            <div id="map" class="h-[500px] w-full"></div>
+
+            <!-- BOUTON LOCALISATION -->
+            <button onclick="locateMe()" class="absolute bottom-8 right-8 z-[1000] bg-white p-4 rounded-2xl shadow-2xl border border-gray-100 hover:text-civ-orange transition-all active:scale-95 flex items-center gap-3">
+                <i class="fas fa-location-crosshairs text-xl text-civ-orange"></i>
+                <span class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-800">Ma Position</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+    <!-- FOOTER -->
+    <footer class="bg-slate-900 text-white pt-24 pb-12 rounded-t-[4rem] relative z-20">
+        <div class="max-w-6xl mx-auto px-4 text-center">
+            <div class="mb-16">
+                <h4 class="text-4xl font-black text-white italic mb-4">KONEKT<span class="text-civ-orange">.</span></h4>
+                <p class="text-white/40 text-[10px] font-bold uppercase tracking-[0.4em]">Compagnie de Transport Ferroviaire Abidjanaise</p>
+            </div>
+            <div class="border-t border-white/5 pt-12 flex flex-col md:flex-row justify-between items-center gap-6">
+                <p class="text-[9px] font-bold text-slate-500 uppercase tracking-widest">© 2026 KONEKT METRO ABIDJAN</p>
+                <p class="text-[9px] font-bold text-slate-500 uppercase tracking-widest">DÉVELOPPÉ PAR AZIZ COMPAORÉ & GROUPE</p>
+            </div>
+        </div>
+    </footer>
+   <!-- LOGIQUE CARTE & TRAJET -->
+<script>
+    var map = L.map('map-result', { scrollWheelZoom: true }).setView([5.359, -4.008], 11);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
+
+    // Liste officielle mise à jour selon tes données
+    var garesLigne1 = [
+        { name: "Centre Anyama", coord: [5.4882, -4.0515] },
+        { name: "Anyama Sud", coord: [5.4720, -4.0450] },
+        { name: "Abobo Nord", coord: [5.4350, -4.0250] },
+        { name: "Centre Abobo", coord: [5.4195, -4.0192] },
+        { name: "Abobo SOGEFIHA", coord: [5.4100, -4.0180] },
+        { name: "PK 18", coord: [5.4520, -4.0320] },
+        { name: "Agban", coord: [5.3650, -4.0120] },
+        { name: "Centre Adjamé", coord: [5.3480, -4.0160] },
+        { name: "Liberté", coord: [5.3380, -4.0170] },
+        { name: "Centre du Plateau", coord: [5.3320, -4.0180] },
+        { name: "Plateau Sud", coord: [5.3250, -4.0190] },
+        { name: "Gare Bassam de Treichville", coord: [5.3050, -4.0110] },
+        { name: "Hôpital de Treichville", coord: [5.2980, -4.0050] },
+        { name: "Zone 4 de Marcory", coord: [5.2850, -3.9780] },
+        { name: "Centre Marcory", coord: [5.2750, -3.9650] },
+        { name: "Koumassi Nord", coord: [5.2650, -3.9550] },
+        { name: "Koumassi Sud", coord: [5.2600, -3.9480] },
+        { name: "Aéroport Port-Bouët", coord: [5.2520, -3.9350] }
+    ];
+
+    // Nettoyage des noms pour la comparaison
+    var depNomRaw = "{{ depart.nom|default:voyages.0.dep_user }}".toLowerCase().trim();
+    var arrNomRaw = "{{ arrivee.nom|default:voyages.0.arr_user }}".toLowerCase().trim();
+
+    // Fonction de recherche flexible
+    function trouverGare(nomRecherche) {
+        return garesLigne1.findIndex(g => {
+            var nameJS = g.name.toLowerCase();
+            return nameJS.includes(nomRecherche) || nomRecherche.includes(nameJS);
+        });
+    }
+
+    var idxStart = trouverGare(depNomRaw);
+    var idxEnd = trouverGare(arrNomRaw);
+
+    // Toujours tracer la ligne complète en gris très clair pour le fond[cite: 3]
+    L.polyline(garesLigne1.map(g => g.coord), { color: '#f1f5f9', weight: 4 }).addTo(map);
+
+    if (idxStart !== -1 && idxEnd !== -1) {
+        var start = Math.min(idxStart, idxEnd);
+        var end = Math.max(idxStart, idxEnd);
+        var segment = garesLigne1.slice(start, end + 1);
+        var segmentCoords = segment.map(g => g.coord);
+
+        // Tracer le trajet en Orange KONEKT[cite: 3]
+        var route = L.polyline(segmentCoords, { color: '#FF8200', weight: 8, opacity: 0.9 }).addTo(map);
+
+        // Affichage de toutes les gares du trajet[cite: 3]
+        segment.forEach(function(gare, index) {
+            var isExtremity = (index === 0 || index === segment.length - 1);
+
+            L.circleMarker(gare.coord, {
+                radius: isExtremity ? 7 : 4,
+                fillColor: isExtremity ? (index === 0 ? "#009E49" : "#FF8200") : "#fff",
+                color: isExtremity ? "#fff" : "#FF8200",
+                weight: 2,
+                fillOpacity: 1
+            })
+            .addTo(map)
+            .bindTooltip(gare.name, {
+                permanent: isExtremity,
+                direction: 'top',
+                className: 'gare-label',
+                offset: [0, -5]
+            });
+        });
+
+        map.fitBounds(route.getBounds(), { padding: [50, 50] });
+    } else {
+        // Fallback si les noms divergent trop[cite: 3]
+        console.warn("Gares non trouvées :", depNomRaw, arrNomRaw);
+        map.setView([5.359, -4.008], 12);
+    }
+
+    function locateMe() { map.locate({setView: true, maxZoom: 14}); }
+    map.on('locationfound', function(e) {
+        L.circleMarker(e.latlng, { radius: 6, fillColor: "#3b82f6", color: "#fff", weight: 2, fillOpacity: 1 }).addTo(map).bindPopup("Vous êtes ici").openPopup();
+    });
+</script>
+</body>
+</html>

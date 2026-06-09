@@ -1,0 +1,128 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KONEKT | Ticket {{ res.code_ticket|default:"VALIDE" }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+        @media print { .no-print { display: none; } }
+        .bg-civ-orange { background-color: #FF8200; }
+        .border-civ-orange { border-color: #FF8200; }
+        .text-civ-orange { color: #FF8200; }
+
+        .ticket-cut { position: relative; }
+        .ticket-cut::before, .ticket-cut::after {
+            content: '';
+            position: absolute;
+            top: -12px;
+            width: 24px;
+            height: 24px;
+            background-color: #f3f4f6;
+            border-radius: 50%;
+        }
+        .ticket-cut::before { left: -12px; }
+        .ticket-cut::after { right: -12px; }
+    </style>
+</head>
+<body class="bg-gray-100 p-4 font-sans text-gray-900">
+
+    <div class="max-w-xs mx-auto bg-white rounded-[2rem] shadow-2xl overflow-hidden border border-gray-100">
+        <!-- HEADER -->
+        <div class="bg-black p-6 text-white text-center">
+            <div class="flex justify-between items-center mb-1">
+                <h1 class="text-2xl font-black tracking-tighter italic">KONEKT</h1>
+                <span class="text-[10px] font-bold text-orange-400 uppercase tracking-widest">Payé</span>
+            </div>
+            <p class="text-[8px] uppercase tracking-[0.3em] opacity-50">Métro d'Abidjan • Billet Officiel</p>
+        </div>
+
+        <div class="p-6 space-y-6">
+            <!-- PASSAGER & RAME -->
+            <div class="flex justify-between items-start">
+                <div class="overflow-hidden flex-1">
+                    <p class="text-[9px] font-black text-gray-400 uppercase mb-1">Passager</p>
+                    <p class="text-lg font-bold truncate uppercase text-gray-800 leading-tight">
+                        {{ res.nom_passager|default:"AZIZ" }} <br> {{ res.prenom_passager|default:"ABDOUL" }}
+                    </p>
+                </div>
+                <div class="text-right ml-4">
+                    <p class="text-[9px] font-black text-gray-400 uppercase mb-1">Rame</p>
+                    <p class="text-lg font-bold mono italic text-gray-800">M1-{{ res.voyage.id|default:"6" }}</p>
+                </div>
+            </div>
+
+            <!-- TRAJET -->
+            <div class="border-y border-dashed border-gray-200 py-4">
+                <div class="flex flex-col gap-3">
+                    <div class="flex items-center gap-3">
+                        <div class="w-2 h-2 rounded-full border-2 border-civ-orange bg-white"></div>
+                        <p class="text-sm font-black truncate flex-1 uppercase text-gray-700">
+                            {{ res.gare_depart_nom|default:"MARCORY CENTRE" }}
+                        </p>
+                    </div>
+                    <div class="h-6 border-l-2 border-dotted border-gray-200 ml-[3px]"></div>
+                    <div class="flex items-center gap-3">
+                        <div class="w-2 h-2 rounded-full bg-civ-orange"></div>
+                        <p class="text-sm font-black truncate flex-1 uppercase text-gray-700">
+                            {{ res.gare_arrivee_nom|default:"PK 18" }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- HEURE & PRIX -->
+            <div class="flex justify-between items-end">
+                <div>
+                    <p class="text-[9px] font-black text-gray-400 uppercase">Heure de passage</p>
+                    <p class="text-2xl font-black text-gray-900">
+                        <!-- Correction ici : on vérifie plusieurs sources possibles pour l'heure -->
+                        {% if res.heure_reelle_ticket %}
+                            {{ res.heure_reelle_ticket|time:"H:i" }}
+                        {% elif res.heure_affichage %}
+                            {{ res.heure_affichage|time:"H:i" }}
+                        {% else %}
+                            {{ res.voyage.heure_depart|time:"H:i" }}
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="text-right">
+                    <p class="text-[9px] font-black text-gray-400 uppercase">{{ res.mode_paiement|default:"WAVE" }}</p>
+                    <p class="text-xl font-black text-green-600">{{ res.prix_paye|default:"500" }} <small class="text-[10px]">FCFA</small></p>
+                </div>
+            </div>
+
+            <!-- QR CODE SECTION -->
+            <div class="pt-8 border-t-2 border-dashed border-gray-100 mt-4 ticket-cut flex flex-col items-center">
+                <div class="p-3 border-2 border-gray-50 rounded-2xl bg-white mb-3 shadow-md">
+                    {% if res.qr_code %}
+                        <img src="{{ res.qr_code.url }}" class="w-36 h-36" alt="QR Code Ticket">
+                    {% else %}
+                        <!-- QR Code de secours basé sur l'image_ef2622.png -->
+                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={{ res.code_ticket|default:'KNEKT-DFCE' }}&color=FF8200" class="w-36 h-36" alt="QR Code">
+                    {% endif %}
+                </div>
+                <p class="text-[9px] font-bold text-gray-500 mono tracking-widest uppercase">
+                    {{ res.code_ticket|default:"KNEKT-DFCE" }}
+                </p>
+                <p class="text-[7px] text-gray-400 mt-2 uppercase italic">
+                    Émis le {{ res.date_reservation|date:"d/m/Y H:i" }}
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ACTIONS -->
+    <div class="max-w-xs mx-auto mt-6 grid grid-cols-1 gap-3 no-print">
+        <button onclick="window.print()" class="bg-white py-4 rounded-2xl font-black text-[10px] uppercase shadow-sm border border-gray-200 hover:bg-gray-50 active:scale-95 transition-all text-gray-700">
+            📥 Télécharger / Imprimer
+        </button>
+        <a href="{% url 'home' %}" class="bg-black text-white py-4 rounded-2xl font-black text-[10px] text-center uppercase shadow-sm hover:bg-gray-900 active:scale-95 transition-all">
+            🏠 Retour à l'accueil
+        </a>
+    </div>
+
+</body>
+</html>

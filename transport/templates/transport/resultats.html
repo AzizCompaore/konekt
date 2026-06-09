@@ -1,0 +1,216 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Konekt | Résultats de recherche</title>
+
+    <!-- Scripts & Styles -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        civ: { orange: '#FF8200', green: '#009E49' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+
+        .gare-label {
+            background: white;
+            border: 1px solid #FF8200;
+            border-radius: 4px;
+            padding: 1px 6px;
+            font-weight: 800;
+            font-size: 10px;
+            color: #1a202c;
+        }
+        #map-result { outline: none; }
+    </style>
+</head>
+<body class="bg-gray-50 font-sans text-gray-900">
+
+    <!-- NAVBAR -->
+    <nav class="bg-white border-b border-gray-100 p-4 sticky top-0 z-[100] shadow-sm">
+        <div class="max-w-5xl mx-auto flex justify-between items-center">
+            <a href="{% url 'home' %}" class="text-2xl font-black text-civ-orange tracking-tighter italic">KONEKT</a>
+            <a href="{% url 'home' %}" class="text-[10px] font-bold text-gray-400 uppercase border border-gray-200 px-3 py-1 rounded-lg hover:bg-gray-50 transition">Modifier la recherche</a>
+        </div>
+    </nav>
+
+    <div class="max-w-4xl mx-auto px-4 py-8">
+
+        <!-- HEADER RÉSULTATS -->
+        <div class="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
+            <div>
+                <h1 class="text-2xl font-black text-gray-800 uppercase tracking-tight">Prochains départs</h1>
+                <p class="text-gray-500 text-sm font-medium italic">
+                    {{ depart.nom|default:voyages.0.dep_user }}
+                    <span class="text-civ-orange mx-2 text-lg">➔</span>
+                    {{ arrivee.nom|default:voyages.0.arr_user }}
+                </p>
+            </div>
+
+            {% if prix_total or voyages.0.prix_a_payer %}
+            <div class="bg-orange-50 px-6 py-2 rounded-2xl border border-orange-100 self-start md:self-auto">
+                <p class="text-[9px] font-black text-orange-400 uppercase">Tarif du trajet</p>
+                <p class="text-xl font-black text-civ-orange">
+                    {{ prix_total|default:voyages.0.prix_a_payer }}
+                    <small class="text-[10px] ml-0.5 font-bold">FCFA</small>
+                </p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- CARTE DU PARCOURS -->
+        <div class="mb-10 bg-white p-3 rounded-[2.5rem] shadow-sm border border-gray-100 relative">
+            <div id="map-result" class="h-[350px] w-full rounded-[2rem] z-10"></div>
+            <!-- Bouton Localisation -->
+            <button onclick="locateMe()" class="absolute bottom-8 right-8 z-[1000] bg-white p-3 rounded-xl shadow-xl border border-gray-50 hover:text-civ-orange transition-all active:scale-95">
+                <i class="fas fa-location-crosshairs text-lg"></i>
+            </button>
+        </div>
+
+        <!-- LISTE DES VOYAGES -->
+        <div class="space-y-4">
+            {% for voyage in voyages %}
+            <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-col md:flex-row md:items-center justify-between hover:border-civ-orange transition-all group {% if voyage.statut == 'EN COURS' %}bg-gray-50/50{% endif %}">
+
+                <div class="flex items-center gap-8">
+                    <div class="text-center md:border-r md:pr-10 border-gray-100">
+                        <p class="text-[9px] font-black text-gray-400 uppercase mb-1">Départ</p>
+                        <p class="text-3xl font-black text-gray-900 leading-none italic">{{ voyage.heure_depart|time:"H:i" }}</p>
+                    </div>
+
+                    <div>
+                        <div class="flex items-center gap-3 mb-3">
+                            <span class="text-sm font-black text-slate-800 italic uppercase">{{ voyage.dep_user|default:depart.nom }}</span>
+                            <span class="text-civ-orange text-xs">➔</span>
+                            <span class="text-sm font-black text-slate-800 italic uppercase">{{ voyage.arr_user|default:arrivee.nom }}</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="text-[10px] font-black text-gray-400 bg-gray-100 px-3 py-1 rounded-full uppercase tracking-wider">Rame M1-{{ voyage.id }}</span>
+
+                            {% if voyage.statut == "EN COURS" %}
+                                <span class="flex items-center gap-1.5 text-[10px] font-black text-orange-500 uppercase italic">
+                                    <span class="w-1.5 h-1.5 bg-orange-500 rounded-full animate-pulse"></span>
+                                    En cours
+                                </span>
+                            {% else %}
+                                <span class="flex items-center gap-1.5 text-[10px] font-black text-civ-green uppercase italic">
+                                    <span class="w-1.5 h-1.5 bg-civ-green rounded-full"></span>
+                                    À l'heure
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-6 md:mt-0">
+                    {% if voyage.peut_reserver %}
+                        <a href="{% url 'reserver_etape_1' voyage.id %}?dep={{ voyage.dep_user|default:depart.nom }}&arr={{ voyage.arr_user|default:arrivee.nom }}&prix={{ voyage.prix_a_payer|default:prix_total }}"
+                           class="inline-block w-full md:w-auto bg-slate-900 text-white text-center text-[10px] font-black px-12 py-4 rounded-2xl hover:bg-civ-orange transition-all shadow-lg active:scale-95 uppercase tracking-[0.2em]">
+                            Réserver
+                        </a>
+                    {% else %}
+                        <div class="flex flex-col items-center md:items-end">
+                            <button disabled class="w-full md:w-auto bg-gray-100 text-gray-300 text-center text-[10px] font-black px-12 py-4 rounded-2xl uppercase tracking-widest cursor-not-allowed italic">
+                                Déjà parti
+                            </button>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% empty %}
+            <div class="py-24 bg-white rounded-[3rem] border-2 border-dashed border-gray-100 text-center px-6">
+                <p class="text-gray-400 font-black uppercase text-xs tracking-[0.2em]">Aucun métro disponible pour ce trajet.</p>
+                <a href="{% url 'home' %}" class="mt-8 inline-block bg-white border-2 border-civ-orange text-civ-orange text-[10px] font-black uppercase px-8 py-3 rounded-xl hover:bg-civ-orange hover:text-white transition-all">
+                    Changer de trajet
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <footer class="mt-20 py-12 text-center border-t border-gray-100 bg-white">
+        <p class="text-[9px] font-black text-gray-300 uppercase tracking-[0.5em] italic">© 2026 KONEKT METRO • ABIDJAN LIGNE 1</p>
+    </footer>
+
+   <!-- LOGIQUE CARTE & TRAJET -->
+<!-- LOGIQUE CARTE & TRAJET -->
+<script>
+    var map = L.map('map-result', { scrollWheelZoom: true }).setView([5.359, -4.008], 11);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
+
+    var garesLigne1 = [
+        { name: "Anyama Centre", coord: [5.4882, -4.0515] }, { name: "Anyama Sud", coord: [5.4720, -4.0450] },
+        { name: "PK 18", coord: [5.4520, -4.0320] }, { name: "Abobo Nord", coord: [5.4350, -4.0250] },
+        { name: "Abobo Gare", coord: [5.4195, -4.0192] }, { name: "Le Banco", coord: [5.4050, -4.0170] },
+        { name: "Humici", coord: [5.3950, -4.0150] }, { name: "Agban", coord: [5.3650, -4.0120] },
+        { name: "Gare Nord (Adjamé)", coord: [5.3480, -4.0160] }, { name: "Plateau Lagune", coord: [5.3320, -4.0180] },
+        { name: "Plateau Centre", coord: [5.3250, -4.0190] }, { name: "Treichville", coord: [5.3050, -4.0110] },
+        { name: "Bietry", coord: [5.2920, -3.9920] }, { name: "Marcory", coord: [5.2850, -3.9780] },
+        { name: "Koumassi", coord: [5.2650, -3.9550] }, { name: "Port-Bouët", coord: [5.2600, -3.9480] },
+        { name: "Akwaba", coord: [5.2550, -3.9420] }, { name: "Aéroport FHB", coord: [5.2520, -3.9350] }
+    ];
+
+    var depNomRaw = "{{ depart.nom|default:voyages.0.dep_user }}".toLowerCase().trim();
+    var arrNomRaw = "{{ arrivee.nom|default:voyages.0.arr_user }}".toLowerCase().trim();
+
+    function trouverGare(nomRecherche) {
+        return garesLigne1.findIndex(g => {
+            var nameJS = g.name.toLowerCase();
+            return nameJS.includes(nomRecherche) || nomRecherche.includes(nameJS);
+        });
+    }
+
+    var idxStart = trouverGare(depNomRaw);
+    var idxEnd = trouverGare(arrNomRaw);
+
+    // Dessiner la ligne de contexte (toute la ligne 1)
+    L.polyline(garesLigne1.map(g => g.coord), { color: '#f1f5f9', weight: 4 }).addTo(map);
+
+    if (idxStart !== -1 && idxEnd !== -1) {
+        var start = Math.min(idxStart, idxEnd);
+        var end = Math.max(idxStart, idxEnd);
+        var segment = garesLigne1.slice(start, end + 1);
+        var segmentCoords = segment.map(g => g.coord);
+
+        // Tracer le segment utilisateur
+        var route = L.polyline(segmentCoords, { color: '#FF8200', weight: 8, opacity: 0.9 }).addTo(map);
+
+        // AJOUT DES STATIONS SUR LE TRAJET
+        segment.forEach(function(gare, index) {
+            var isExtremity = (index === 0 || index === segment.length - 1);
+
+            L.circleMarker(gare.coord, {
+                radius: isExtremity ? 7 : 4,
+                fillColor: isExtremity ? (index === 0 ? "#009E49" : "#FF8200") : "#fff",
+                color: isExtremity ? "#fff" : "#FF8200",
+                weight: 2,
+                fillOpacity: 1
+            })
+            .addTo(map)
+            .bindTooltip(gare.name, {
+                permanent: isExtremity, // Toujours afficher pour départ/arrivée
+                direction: 'top',
+                className: 'gare-label',
+                offset: [0, -5]
+            });
+        });
+
+        map.fitBounds(route.getBounds(), { padding: [50, 50] });
+    }
+</script>
+</body>
+</html>
